@@ -25,6 +25,11 @@ class TCCritic(nn.Module):
         self.fc = nn.Linear(args.hiden_dim, 1)
 
     def forward(self, act, states, mask):
+        '''
+        act: [batch_size, src_len, n_agents, available_actions]
+        states: [batch_size, src_len, states_num]
+        mask: [batch_size, src_len, 1]
+        '''
 
         batch_size, src_len = act.size(0), act.size(1)
         act = act.reshape(batch_size, src_len, -1)
@@ -32,7 +37,7 @@ class TCCritic(nn.Module):
 
         enc_outputs = self.embeding_layer(enc_inputs)
         enc_outputs = self.pos_emb(enc_outputs.transpose(0, 1)).transpose(0, 1) # [batch_size, src_len, hiden_dim]
-        enc_self_attn_mask = mask.repeat(1, 1, src_len) # [batch_size, src_len, src_len]
+        enc_self_attn_mask = mask.transpose(-1,-2).expand(batch_size, src_len, src_len) # [batch_size, src_len, src_len]
         enc_self_attns = []
         for layer in self.layers:
             # enc_outputs: [batch_size, src_len, hiden_dim], enc_self_attn: [batch_size, n_heads, src_len, src_len]
@@ -76,6 +81,7 @@ class ScaledDotProductAttention(nn.Module):
         V: [batch_size, n_heads, len_v(=len_k), d_v]
         attn_mask: [batch_size, n_heads, seq_len, seq_len]
         '''
+
         scores = torch.matmul(Q, K.transpose(-1, -2)) / np.sqrt(self.d_k) # scores : [batch_size, n_heads, len_q, len_k]
         scores.masked_fill_(attn_mask==0, -1e9) # Fills elements of self tensor with value where mask is True.
         
