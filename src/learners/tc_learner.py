@@ -102,6 +102,13 @@ class TCLearner:
         target_q_vals = target_q_vals[:, :]
 
         # Calculate td-lambda targets
+        '''
+        rewards: [batch_size, src_len, 1]
+        terminated: [batch_size, src_len, 1]
+        mask: [batch_size, src_len, 1]
+        target_q_vals: [batch_size, src_len, 1]
+        '''
+
         targets = build_td_lambda_targets(rewards, terminated, mask, target_q_vals, self.n_agents, self.args.gamma, self.args.td_lambda)
 
         running_log = {

@@ -9,7 +9,7 @@ mask_before_softmax: True # set to True for entropy regularization
 runner: "parallel"
 
 buffer_size: 32
-batch_size_run: 32
+batch_size_run: 16
 batch_size: 32
 
 td_lambda: 0.8
@@ -21,11 +21,11 @@ target_update_interval: 200
 agent_output_type: "pi_logits"
 learner: "tc_learner"
 entropy_coef: 0.11 # 0.03 for 3s5z_vs_3s6z, 0.06 for all others
-hiden_dim: 256
+hiden_dim: 128
 
 n_layers: 6
 n_heads: 8
-d_ff: 512
+d_ff: 256
 d_k: 128
 d_v: 128
 

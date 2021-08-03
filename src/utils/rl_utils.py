@@ -5,6 +5,7 @@ def build_td_lambda_targets(rewards, terminated, mask, target_qs, n_agents, gamm
     # Assumes  <target_qs > in B*T*A and <reward >, <terminated >, <mask > in (at least) B*T-1*1
     # Initialise  last  lambda -return  for  not  terminated  episodes
     ret = target_qs.new_zeros(*target_qs.shape)
+    # ret表示的是累计回报，如果已经结束，那么这个episode中最后一个time step的q值为0
     ret[:, -1] = target_qs[:, -1] * (1 - th.sum(terminated, dim=1))
     # Backwards  recursive  update  of the "forward  view"
     for t in range(ret.shape[1] - 2, -1,  -1):
