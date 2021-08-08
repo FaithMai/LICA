@@ -33,19 +33,6 @@ class LICALearner:
 
         self.entropy_coef = args.entropy_coef
 
-    def show_grad_info(self, m):
-        f = open('./results/lica_grad.txt', 'a+')
-        for name, weight in m.named_parameters():
-			# print("weight:", weight) # 打印权重，看是否在变化
-            if weight.requires_grad:
-				# print("weight:", weight.grad) # 打印梯度，看是否丢失
-				# 直接打印梯度会出现太多输出，可以选择打印梯度的均值、极值，但如果梯度为None会报错
-                f.write('name:'+name+'\n')
-                f.write("weight.grad: mean:"+str(round(weight.grad.mean().cpu().item(), 4))+' min:'+str(round(weight.grad.min().cpu().item(), 4))+' max:'+str(round(weight.grad.max().cpu().item(), 4))+'\n')
-        f.write('\n\n\n')
-        f.flush()
-        f.close()
-
     def train(self, batch: EpisodeBatch, t_env: int, episode_num: int):
         # Get the relevant quantities
         bs = batch.batch_size
@@ -92,11 +79,6 @@ class LICALearner:
         # Optimise agents
         self.agent_optimiser.zero_grad()
         mix_loss.backward()
-        
-        if t_env - self.log_stats_t_agent >= self.args.learner_log_interval:
-            self.show_grad_info(self.critic)
-            self.show_grad_info(self.mac.agent)
-
         grad_norm = th.nn.utils.clip_grad_norm_(self.agent_params, self.args.grad_norm_clip)
         self.agent_optimiser.step()
 

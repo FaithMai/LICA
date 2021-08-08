@@ -29,4 +29,4 @@ d_ff: 256
 d_k: 128
 d_v: 128
 
-name: "tc_weight_init"
+name: "tc_xavier_init"
