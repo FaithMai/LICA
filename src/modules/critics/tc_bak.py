@@ -22,7 +22,7 @@ class TCCritic(nn.Module):
 
         self.pos_emb = PositionalEncoding(args.hiden_dim)
         self.layers = nn.ModuleList([EncoderLayer(args) for _ in range(args.n_layers)])
-        self.fc = nn.Linear(args.hiden_dim, 1)
+        self.fc = nn.Linear(args.hiden_dim, self.n_agents*self.n_actions)
 
     def forward(self, act, states, mask):
         '''

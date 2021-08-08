@@ -4,6 +4,7 @@ from modules.critics.tc import TCCritic
 from components.action_selectors import multinomial_entropy
 from utils.rl_utils import build_td_lambda_targets
 import torch as th
+import torch.nn as nn
 from torch.optim import RMSprop, Adam
 
 
@@ -22,6 +23,7 @@ class TCLearner:
         self.log_stats_t_agent = -self.args.learner_log_interval - 1
 
         self.critic = TCCritic(scheme, args)
+        self.critic.apply(self.weights_init)
         self.target_critic = copy.deepcopy(self.critic)
 
         self.agent_params = list(self.mac.parameters())
@@ -32,6 +34,10 @@ class TCLearner:
         self.critic_optimiser = Adam(params=self.critic_params, lr=args.critic_lr)
 
         self.entropy_coef = args.entropy_coef
+    
+    def weights_init(m):                                               
+        nn.init.normal_(m.weight.data, 0.0, 0.02)
+
 
     def train(self, batch: EpisodeBatch, t_env: int, episode_num: int):
         # Get the relevant quantities
@@ -65,13 +71,10 @@ class TCLearner:
         # Mix action probability and state to estimate joint Q-value
         mix_loss, enc_self_attns = self.critic(mac_out, batch["state"][:, :-1], mask)
 
-        mask_tc = mask.expand_as(mix_loss)
+        mask = mask.expand_as(mix_loss)
         entropy_mask = copy.deepcopy(mask)
 
-        q_values = mix_loss.view(mix_loss.size(0), -1, self.n_agents, self.n_actions).detach()
-        mask_tc = mask_tc.view(mask_tc.size(0), -1, self.n_agents, self.n_actions)
-
-        mix_loss = (q_values * mac_out * mask_tc).sum() / mask_tc.sum()
+        mix_loss = (mix_loss * mask).sum() / mask.sum()
 
         # Adaptive Entropy Regularization
         entropy_loss = (mac_out_entropy * entropy_mask).sum() / entropy_mask.sum()
