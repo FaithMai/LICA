@@ -35,7 +35,7 @@ class TCLearner:
 
         self.entropy_coef = args.entropy_coef
     
-    def weights_init(m):                                               
+    def weights_init(self, m):                                               
         nn.init.normal_(m.weight.data, 0.0, 0.02)
 
 
