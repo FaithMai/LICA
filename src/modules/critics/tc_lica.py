@@ -2,12 +2,83 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-import math
 import copy
+import math
 
-class TCCritic(nn.Module):
+
+class TCLICACritic(nn.Module):
     def __init__(self, scheme, args):
-        super(TCCritic, self).__init__()
+        super(TCLICACritic, self).__init__()
+
+        self.args = args
+        self.n_actions = args.n_actions
+        self.n_agents = args.n_agents
+
+        self.output_type = "q"
+
+        # Set up network layers
+        self.state_dim = int(np.prod(args.state_shape))
+
+        self.embed_dim = args.mixing_embed_dim * self.n_agents * self.n_actions
+        self.hid_dim = args.mixing_embed_dim
+
+        self.transformer = Transformer(self.args)
+        
+        if getattr(args, "hypernet_layers", 1) == 1:
+            self.hyper_w_1 = nn.Linear(self.state_dim, self.embed_dim)
+            self.hyper_w_final = nn.Linear(self.state_dim, self.embed_dim)
+        elif getattr(args, "hypernet_layers", 1) == 2:
+            self.hyper_w_1 = nn.Sequential(nn.Linear(self.state_dim, self.embed_dim),
+                                           nn.ReLU(),
+                                           nn.Linear(self.embed_dim, self.embed_dim))
+            self.hyper_w_final = nn.Sequential(nn.Linear(self.state_dim, self.hid_dim),
+                                           nn.ReLU(),
+                                           nn.Linear(self.hid_dim, self.hid_dim))
+        elif getattr(args, "hypernet_layers", 1) > 2:
+            raise Exception("Sorry >2 hypernet layers is not implemented!")
+        else:
+            raise Exception("Error setting number of hypernet layers.")
+
+        # State dependent bias for hidden layer
+        self.hyper_b_1 = nn.Linear(self.state_dim, self.hid_dim)
+
+        self.hyper_b_2 = nn.Sequential(nn.Linear(self.state_dim, self.hid_dim),
+                               nn.ReLU(),
+                               nn.Linear(self.hid_dim, 1))
+
+    def forward(self, act, states, mask):
+        act_his_features, _ = self.transformer(act, mask)
+        bs = states.size(0)
+        states = states.reshape(-1, self.state_dim)
+
+        # act = act.reshape(bs, -1, self.n_agents*self.n_actions)
+        # act = torch.cat([act, act_his_features], dim=1)
+
+        action_probs = act_his_features.reshape(-1, 1, self.n_agents * self.n_actions)
+
+        w1 = self.hyper_w_1(states)
+        b1 = self.hyper_b_1(states)
+        w1 = w1.view(-1, self.n_agents * self.n_actions, self.hid_dim)
+        b1 = b1.view(-1, 1, self.hid_dim)
+
+        h = torch.relu(torch.bmm(action_probs, w1) + b1)
+
+        w_final = self.hyper_w_final(states)
+        w_final = w_final.view(-1, self.hid_dim, 1)
+
+        h2 = torch.bmm(h, w_final)
+
+        b2 = self.hyper_b_2(states).view(-1, 1, 1)
+
+        q = h2 + b2
+
+        q = q.view(bs, -1, 1)
+
+        return q
+
+class Transformer(nn.Module):
+    def __init__(self, args):
+        super(Transformer, self).__init__()
 
         self.args = args
         self.n_actions = args.n_actions
@@ -16,15 +87,15 @@ class TCCritic(nn.Module):
         # Set up network layers
         self.state_dim = int(np.prod(args.state_shape))
 
-        self.input_dim = self.state_dim + self.n_agents * self.n_actions
+        self.input_dim = self.n_agents * self.n_actions
         
         self.embeding_layer = nn.Linear(self.input_dim, args.hiden_dim)
 
         self.pos_emb = PositionalEncoding(args.hiden_dim)
         self.layers = nn.ModuleList([EncoderLayer(args) for _ in range(args.n_layers)])
-        self.fc = nn.Linear(args.hiden_dim, 1)
+        self.fc = nn.Linear(args.hiden_dim, self.input_dim)
 
-    def forward(self, act, states, mask):
+    def forward(self, act, mask):
         '''
         act: [batch_size, src_len, n_agents, available_actions]
         states: [batch_size, src_len, states_num]
@@ -32,9 +103,9 @@ class TCCritic(nn.Module):
         '''
 
         mask = copy.deepcopy(mask)
+
         batch_size, src_len = act.size(0), act.size(1)
-        act = act.reshape(batch_size, src_len, -1)
-        enc_inputs = torch.cat([states, act], dim=2)
+        enc_inputs = act.reshape(batch_size, src_len, -1)
 
         enc_outputs = self.embeding_layer(enc_inputs)
         enc_outputs = self.pos_emb(enc_outputs.transpose(0, 1)).transpose(0, 1) # [batch_size, src_len, hiden_dim]
