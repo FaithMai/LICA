@@ -5,6 +5,7 @@ from components.action_selectors import multinomial_entropy
 from utils.rl_utils import build_td_lambda_targets
 import torch as th
 from torch.optim import RMSprop, Adam
+import torch.nn as nn
 
 
 class TCLICALearner:
@@ -22,6 +23,7 @@ class TCLICALearner:
         self.log_stats_t_agent = -self.args.learner_log_interval - 1
 
         self.critic = TCLICACritic(scheme, args)
+        self.critic.apply(self.weights_init)
         self.target_critic = copy.deepcopy(self.critic)
 
         self.agent_params = list(self.mac.parameters())
@@ -32,6 +34,12 @@ class TCLICALearner:
         self.critic_optimiser = Adam(params=self.critic_params, lr=args.critic_lr)
 
         self.entropy_coef = args.entropy_coef
+
+    def weights_init(self, m):
+        if isinstance(m, nn.Linear):                                           
+            # nn.init.normal_(m.weight.data, 0.0, 0.02)
+            nn.init.xavier_normal_(m.weight)
+            # nn.init.constant_(m.bias, 0)
 
     # def show_grad_info(self, m):
     #     f = open('./results/lica_grad.txt', 'a+')
