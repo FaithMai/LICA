@@ -9,7 +9,7 @@ mask_before_softmax: True # set to True for entropy regularization
 runner: "parallel"
 
 buffer_size: 32
-batch_size_run: 32
+batch_size_run: 16
 batch_size: 32
 
 td_lambda: 0.8

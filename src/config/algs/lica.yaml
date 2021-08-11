@@ -9,7 +9,7 @@ mask_before_softmax: True # set to True for entropy regularization
 runner: "parallel"
 
 buffer_size: 32
-batch_size_run: 32
+batch_size_run: 16
 batch_size: 32
 
 td_lambda: 0.8
@@ -24,4 +24,4 @@ mixing_embed_dim: 64
 hypernet_layers: 2
 entropy_coef: 0.11 # 0.03 for 3s5z_vs_3s6z, 0.06 for all others
 
-name: "lica"
+name: "lica_16_run"
