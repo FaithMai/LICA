@@ -24,4 +24,4 @@ mixing_embed_dim: 64
 hypernet_layers: 2
 entropy_coef: 0.11 # 0.03 for 3s5z_vs_3s6z, 0.06 for all others
 
-name: "lica_16_run"
+name: "lica"
