@@ -19,7 +19,7 @@ class TCLICACritic(nn.Module):
         # Set up network layers
         self.state_dim = int(np.prod(args.state_shape))
 
-        self.embed_dim = args.mixing_embed_dim * self.n_agents * self.n_actions
+        self.embed_dim = args.mixing_embed_dim * self.n_agents * self.n_actions*2
         self.hid_dim = args.mixing_embed_dim
 
         self.transformer = Transformer(self.args)
@@ -51,14 +51,14 @@ class TCLICACritic(nn.Module):
         bs = states.size(0)
         states = states.reshape(-1, self.state_dim)
 
-        # act = act.reshape(bs, -1, self.n_agents*self.n_actions)
-        # act = torch.cat([act, act_his_features], dim=1)
+        act = act.reshape(bs, -1, self.n_agents*self.n_actions)
+        act = torch.cat([act, act_his_features], dim=2)
 
-        action_probs = act_his_features.reshape(-1, 1, self.n_agents * self.n_actions)
+        action_probs = act.reshape(-1, 1, self.n_agents * self.n_actions*2)
 
         w1 = self.hyper_w_1(states)
         b1 = self.hyper_b_1(states)
-        w1 = w1.view(-1, self.n_agents * self.n_actions, self.hid_dim)
+        w1 = w1.view(-1, self.n_agents * self.n_actions*2, self.hid_dim)
         b1 = b1.view(-1, 1, self.hid_dim)
 
         h = torch.relu(torch.bmm(action_probs, w1) + b1)

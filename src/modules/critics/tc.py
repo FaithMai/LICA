@@ -17,12 +17,14 @@ class TCCritic(nn.Module):
         self.state_dim = int(np.prod(args.state_shape))
 
         self.input_dim = self.state_dim + self.n_agents * self.n_actions
-        
-        self.embeding_layer = nn.Linear(self.input_dim, args.hiden_dim)
 
-        self.pos_emb = PositionalEncoding(args.hiden_dim)
-        self.layers = nn.ModuleList([EncoderLayer(args) for _ in range(args.n_layers)])
-        self.fc = nn.Linear(args.hiden_dim, 1)
+        self.hiden_dim = args.hiden_dim_rate * self.input_dim
+        
+        self.embeding_layer = nn.Linear(self.input_dim, self.hiden_dim)
+
+        self.pos_emb = PositionalEncoding(self.hiden_dim)
+        self.layers = nn.ModuleList([EncoderLayer(args, self.hiden_dim) for _ in range(args.n_layers)])
+        self.fc = nn.Linear(self.hiden_dim, 1)
 
     def forward(self, act, states, mask):
         '''
@@ -91,16 +93,16 @@ class ScaledDotProductAttention(nn.Module):
         return context, attn
 
 class MultiHeadAttention(nn.Module):
-    def __init__(self, args):
+    def __init__(self, args, hiden_dim):
         super(MultiHeadAttention, self).__init__()
-        self.hiden_dim = args.hiden_dim
+        self.hiden_dim = hiden_dim
         self.n_heads = args.n_heads
         self.d_k = args.d_k
         self.d_v = args.d_v
-        self.W_Q = nn.Linear(args.hiden_dim, args.d_k * args.n_heads, bias=False)
-        self.W_K = nn.Linear(args.hiden_dim, args.d_k * args.n_heads, bias=False)
-        self.W_V = nn.Linear(args.hiden_dim, args.d_v * args.n_heads, bias=False)
-        self.fc = nn.Linear(args.n_heads * args.d_v, args.hiden_dim, bias=False)
+        self.W_Q = nn.Linear(self.hiden_dim, self.d_k * self.n_heads, bias=False)
+        self.W_K = nn.Linear(self.hiden_dim, self.d_k * self.n_heads, bias=False)
+        self.W_V = nn.Linear(self.hiden_dim, self.d_v * self.n_heads, bias=False)
+        self.fc = nn.Linear(self.n_heads * self.d_v, self.hiden_dim, bias=False)
     def forward(self, inputs, attn_mask):
         '''
         input_Q: [batch_size, len_q, hiden_dim]
@@ -123,13 +125,14 @@ class MultiHeadAttention(nn.Module):
         return nn.LayerNorm(self.hiden_dim).cuda()(output + residual), attn
 
 class PoswiseFeedForwardNet(nn.Module):
-    def __init__(self, args):
+    def __init__(self, args, hiden_dim):
         super(PoswiseFeedForwardNet, self).__init__()
-        self.hiden_dim = args.hiden_dim
+        self.hiden_dim = hiden_dim
+        self.d_ff = args.d_ff
         self.fc = nn.Sequential(
-            nn.Linear(args.hiden_dim, args.d_ff, bias=False),
+            nn.Linear(hiden_dim, self.d_ff, bias=False),
             nn.ReLU(),
-            nn.Linear(args.d_ff, args.hiden_dim, bias=False)
+            nn.Linear(self.d_ff, hiden_dim, bias=False)
         )
     def forward(self, inputs):
         '''
@@ -140,10 +143,10 @@ class PoswiseFeedForwardNet(nn.Module):
         return nn.LayerNorm(self.hiden_dim).cuda()(output + residual) # [batch_size, seq_len, hiden_dim]
 
 class EncoderLayer(nn.Module):
-    def __init__(self, args):
+    def __init__(self, args, hiden_dim):
         super(EncoderLayer, self).__init__()
-        self.enc_self_attn = MultiHeadAttention(args)
-        self.pos_ffn = PoswiseFeedForwardNet(args)
+        self.enc_self_attn = MultiHeadAttention(args, hiden_dim)
+        self.pos_ffn = PoswiseFeedForwardNet(args, hiden_dim)
 
     def forward(self, enc_inputs, enc_self_attn_mask):
         '''

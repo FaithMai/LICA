@@ -21,7 +21,7 @@ target_update_interval: 200
 agent_output_type: "pi_logits"
 learner: "tc_learner"
 entropy_coef: 0.11 # 0.03 for 3s5z_vs_3s6z, 0.06 for all others
-hiden_dim: 128
+hiden_dim_rate: 4
 
 n_layers: 3
 n_heads: 4
