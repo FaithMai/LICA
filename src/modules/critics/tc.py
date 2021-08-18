@@ -122,7 +122,8 @@ class MultiHeadAttention(nn.Module):
         context, attn = ScaledDotProductAttention(self.d_k)(Q, K, V, attn_mask)
         context = context.transpose(1, 2).reshape(batch_size, -1, self.n_heads * self.d_v) # context: [batch_size, len_q, n_heads * d_v]
         output = self.fc(context) # [batch_size, len_q, hiden_dim]
-        return nn.LayerNorm(self.hiden_dim).cuda()(output + residual), attn
+        # return nn.LayerNorm(self.hiden_dim).cuda()(output + residual), attn
+        return torch.relu(output + residual), attn
 
 class PoswiseFeedForwardNet(nn.Module):
     def __init__(self, args, hiden_dim):
@@ -140,7 +141,8 @@ class PoswiseFeedForwardNet(nn.Module):
         '''
         residual = inputs
         output = self.fc(inputs)
-        return nn.LayerNorm(self.hiden_dim).cuda()(output + residual) # [batch_size, seq_len, hiden_dim]
+        # return nn.LayerNorm(self.hiden_dim).cuda()(output + residual) # [batch_size, seq_len, hiden_dim]
+        return torch.relu(output + residual) # [batch_size, seq_len, hiden_dim]
 
 class EncoderLayer(nn.Module):
     def __init__(self, args, hiden_dim):
